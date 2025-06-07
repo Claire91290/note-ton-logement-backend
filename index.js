@@ -41,7 +41,7 @@ app.post("/api/ratings", (req, res) => {
 
   const current = data[entry.address];
 
-  ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
+  ["secteur", "accès", "intérieur", "extérieur", "loyer"].forEach((key) => {
     const value = parseInt(entry[key]);
     if (!current.criteria[key]) current.criteria[key] = value;
     else current.criteria[key] = (current.criteria[key] + value) / 2;
