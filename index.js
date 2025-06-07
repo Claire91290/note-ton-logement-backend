@@ -1,25 +1,42 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const mongoose = require('mongoose');
-
+const express = require("express");
 const app = express();
-const PORT = process.env.PORT || 3000;
+const cors = require("cors");
 
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-// Connexion à MongoDB
-mongoose.connect('mongodb://localhost:27017/note-ton-logement', {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
+let ratings = {};
+
+app.get("/api/ratings", (req, res) => {
+  res.json(ratings);
 });
 
-const db = mongoose.connection;
-db.on('error', console.error.bind(console, 'Erreur de connexion à MongoDB :'));
-db.once('open', () => {
-  console.log('Connecté à MongoDB');
+app.post("/api/ratings", (req, res) => {
+  const data = req.body;
+  if (!data.address) return res.status(400).send("Adresse manquante");
+
+  if (!ratings[data.address]) {
+    ratings[data.address] = {
+      lat: data.lat,
+      lng: data.lng,
+      criteria: {},
+      duration: data.duration,
+      count: 0
+    };
+  }
+
+  const entry = ratings[data.address];
+  const crits = ["secteur", "acces", "interieur", "exterieur", "loyer"];
+  crits.forEach(c => {
+    entry.criteria[c] = ((entry.criteria[c] || 0) * entry.count + Number(data[c])) / (entry.count + 1);
+  });
+  entry.count += 1;
+
+  res.sendStatus(200);
 });
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Backend listening on port ${PORT}`));
 
 // Démarrer le serveur
 app.listen(PORT, () => {
