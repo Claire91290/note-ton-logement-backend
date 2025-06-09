@@ -37,6 +37,32 @@ app.post("/api/ratings", (req, res) => {
       duration: entry.duration,
       comments: []
     };
+    import { OAuth2Client } from "google-auth-library";
+const googleClient = new OAuth2Client("821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com"); 
+
+async function verifyGoogleToken(token) {
+  const ticket = await googleClient.verifyIdToken({
+    idToken: token,
+    audience: "821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com", 
+  });
+  return ticket.getPayload(); 
+}
+
+app.post("/api/verify-google-token", async (req, res) => {
+  const { token } = req.body;
+
+  if (!token) {
+    return res.status(400).json({ error: "Token manquant" });
+  }
+
+  try {
+    const userData = await verifyGoogleToken(token);
+    res.status(200).json({ user: userData });
+  } catch (error) {
+    res.status(401).json({ error: "Token invalide" });
+  }
+});
+
   }
 
   const current = data[entry.address];
