@@ -41,7 +41,11 @@ app.get("/api/ratings", async (req, res) => {
 app.post("/api/ratings", async (req, res) => {
   const entry = req.body;
 
-  let rating = await Rating.findOne({ address: entry.address });
+  const { googleId } = entry;
+  const user = await User.findOne({ googleId });
+  if (!user) return res.status(401).json({ error: "Utilisateur non authentifié" });
+
+  let rating = await Rating.findOne({ address: entry.address, user: user._id });
 
   if (!rating) {
     rating = new Rating({
@@ -52,11 +56,26 @@ app.post("/api/ratings", async (req, res) => {
       duration: entry.duration,
       criteria: {},
       comments: [],
+      user: user._id,
     });
   }
 
-  // Met à jour les critères
   ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
+    const value = parseInt(entry[key]);
+    if (!rating.criteria[key]) rating.criteria[key] = value;
+    else rating.criteria[key] = (rating.criteria[key] + value) / 2;
+  });
+
+  if (entry.general_comment) {
+    rating.comments.push(entry.general_comment);
+  }
+
+  await rating.save();
+  res.status(201).json({ message: "Note enregistrée" });
+});
+
+
+    ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
     const value = parseInt(entry[key]);
     if (!rating.criteria[key]) rating.criteria[key] = value;
     else rating.criteria[key] = (rating.criteria[key] + value) / 2;
