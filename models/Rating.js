@@ -1,21 +1,19 @@
 import mongoose from "mongoose";
 
 const ratingSchema = new mongoose.Schema({
-  userId: String,
-  address: String,
+  address: { type: String, required: true, unique: true },
   lat: Number,
   lng: Number,
-  duration: String,
   housingType: String,
-  general_comment: String,
-  ratings: {
+  duration: String,
+  criteria: {
     secteur: Number,
     acces: Number,
     interieur: Number,
     exterieur: Number,
-    loyer: Number
+    loyer: Number,
   },
-  timestamp: { type: Date, default: Date.now }
+  comments: [String],
 });
 
-export default mongoose.model("Rating", ratingSchema);
+export const Rating = mongoose.model("Rating", ratingSchema);
