@@ -3,7 +3,6 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import ratingsRoutes from "./routes/ratings.js";
 import cors from "cors";
-import mongoose from "mongoose";
 
 mongoose.connect("mongodb://localhost:27017/ratingsDB", {
   useNewUrlParser: true,
