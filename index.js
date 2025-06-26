@@ -32,23 +32,57 @@ app.listen(PORT, () => console.log(`🚀 Serveur lancé sur http://localhost:${P
 const dataFile = "data.json";
 
 
-app.get("/api/ratings", (req, res) => {
-const data = readData();
-res.json(data);
+app.get("/api/ratings", async (req, res) => {
+  const ratings = await Rating.find();
+  res.json(ratings);
 });
 
-app.post("/api/ratings", (req, res) => {
-const entry = req.body;
-const data = readData();
-if (!data[entry.address]) {
-data[entry.address] = {
-criteria: {},
-lat: entry.lat,
-lng: entry.lng,
-housingType: entry.housingType,
-duration: entry.duration,
-comments: []
-};
+
+app.post("/api/ratings", async (req, res) => {
+  const entry = req.body;
+
+  let rating = await Rating.findOne({ address: entry.address });
+
+  if (!rating) {
+    rating = new Rating({
+      address: entry.address,
+      lat: entry.lat,
+      lng: entry.lng,
+      housingType: entry.housingType,
+      duration: entry.duration,
+      criteria: {},
+      comments: [],
+    });
+  }
+
+  // Met à jour les critères
+  ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
+    const value = parseInt(entry[key]);
+    if (!rating.criteria[key]) rating.criteria[key] = value;
+    else rating.criteria[key] = (rating.criteria[key] + value) / 2;
+  });
+
+  if (entry.general_comment) {
+    rating.comments.push(entry.general_comment);
+  }
+
+  await rating.save();
+  res.status(201).json({ message: "Note enregistrée" });
+});
+app.delete("/api/ratings", async (req, res) => {
+  const { address } = req.body;
+
+  if (!address) return res.status(400).send("Adresse manquante");
+
+  const deleted = await Rating.deleteOne({ address });
+
+  if (deleted.deletedCount === 0) {
+    return res.status(404).send("Aucune donnée trouvée pour cette adresse");
+  }
+
+  res.status(200).send("Note supprimée");
+});
+
 import { OAuth2Client } from "google-auth-library";
 const googleClient = new OAuth2Client("821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com");
 
