@@ -3,6 +3,16 @@ import mongoose from "mongoose";
 import dotenv from "dotenv";
 import ratingsRoutes from "./routes/ratings.js";
 import cors from "cors";
+import mongoose from "mongoose";
+
+mongoose.connect("mongodb://localhost:27017/ratingsDB", {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+}).then(() => {
+  console.log("✅ Connecté à MongoDB");
+}).catch((err) => {
+  console.error("❌ Erreur de connexion à MongoDB:", err);
+});
 
 dotenv.config();
 
@@ -21,15 +31,6 @@ app.listen(PORT, () => console.log(`🚀 Serveur lancé sur http://localhost:${P
 
 const dataFile = "data.json";
 
-function readData() {
-if (!fs.existsSync(dataFile)) return {};
-const raw = fs.readFileSync(dataFile);
-return JSON.parse(raw);
-}
-
-function writeData(data) {
-fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
-}
 
 app.get("/api/ratings", (req, res) => {
 const data = readData();
