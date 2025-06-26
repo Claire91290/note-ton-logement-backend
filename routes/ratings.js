@@ -1,118 +1,59 @@
+// routes/ratings.js
 import express from "express";
 import Rating from "../models/Rating.js";
+import User from "../models/User.js";
 
 const router = express.Router();
 
-// 🔸 POST (create or update)
-router.post("/", async (req, res) => {
-  const { userId, address, lat, lng, duration, housingType, general_comment, ...ratings } = req.body;
-
-  if (!userId || !address) return res.status(400).json({ message: "Champs requis manquants." });
-
-  try {
-    const existing = await Rating.findOne({ userId, address });
-
-    if (existing) {
-      existing.lat = lat;
-      existing.lng = lng;
-      existing.duration = duration;
-      existing.housingType = housingType;
-      existing.general_comment = general_comment;
-      existing.ratings = {
-        secteur: parseInt(ratings.secteur),
-        acces: parseInt(ratings.acces),
-        interieur: parseInt(ratings.interieur),
-        exterieur: parseInt(ratings.exterieur),
-        loyer: parseInt(ratings.loyer)
-      };
-      await existing.save();
-      return res.status(200).json({ message: "Note mise à jour." });
-    } else {
-      const newRating = new Rating({
-        userId,
-        address,
-        lat,
-        lng,
-        duration,
-        housingType,
-        general_comment,
-        ratings: {
-          secteur: parseInt(ratings.secteur),
-          acces: parseInt(ratings.acces),
-          interieur: parseInt(ratings.interieur),
-          exterieur: parseInt(ratings.exterieur),
-          loyer: parseInt(ratings.loyer)
-        }
-      });
-      await newRating.save();
-      return res.status(201).json({ message: "Note ajoutée." });
-    }
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erreur serveur." });
-  }
-});
-
-// 🔸 GET (average by address)
 router.get("/", async (req, res) => {
-  try {
-    const all = await Rating.find();
-    const grouped = {};
-
-    all.forEach(r => {
-      if (!grouped[r.address]) {
-        grouped[r.address] = {
-          criteria: {
-            secteur: 0,
-            acces: 0,
-            interieur: 0,
-            exterieur: 0,
-            loyer: 0
-          },
-          count: 0,
-          lat: r.lat,
-          lng: r.lng,
-          duration: r.duration,
-          userId: r.userId
-        };
-      }
-      grouped[r.address].criteria.secteur += r.ratings.secteur;
-      grouped[r.address].criteria.acces += r.ratings.acces;
-      grouped[r.address].criteria.interieur += r.ratings.interieur;
-      grouped[r.address].criteria.exterieur += r.ratings.exterieur;
-      grouped[r.address].criteria.loyer += r.ratings.loyer;
-      grouped[r.address].count += 1;
-    });
-
-    for (const addr in grouped) {
-      const c = grouped[addr].criteria;
-      const count = grouped[addr].count;
-      for (let key in c) {
-        c[key] = c[key] / count;
-      }
-    }
-
-    res.json(grouped);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Erreur serveur." });
-  }
+  const ratings = await Rating.find();
+  res.json(ratings);
 });
 
-// 🔸 DELETE (by userId and address)
-router.delete("/", async (req, res) => {
-  const { userId, address } = req.body;
+router.post("/", async (req, res) => {
+  const entry = req.body;
+  const { googleId } = entry;
 
-  try {
-    const result = await Rating.findOneAndDelete({ userId, address });
-    if (result) {
-      res.status(200).json({ message: "Note supprimée." });
-    } else {
-      res.status(404).json({ message: "Note non trouvée." });
-    }
-  } catch (err) {
-    res.status(500).json({ message: "Erreur suppression." });
+  const user = await User.findOne({ googleId });
+  if (!user) return res.status(401).json({ error: "Utilisateur non authentifié" });
+
+  let rating = await Rating.findOne({ address: entry.address, user: user._id });
+
+  if (!rating) {
+    rating = new Rating({
+      address: entry.address,
+      lat: entry.lat,
+      lng: entry.lng,
+      housingType: entry.housingType,
+      duration: entry.duration,
+      criteria: {},
+      comments: [],
+      user: user._id,
+    });
   }
+
+  ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
+    const value = parseInt(entry[key]);
+    if (!rating.criteria[key]) rating.criteria[key] = value;
+    else rating.criteria[key] = (rating.criteria[key] + value) / 2;
+  });
+
+  if (entry.general_comment) {
+    rating.comments.push(entry.general_comment);
+  }
+
+  await rating.save();
+  res.status(201).json({ message: "Note enregistrée" });
+});
+
+router.delete("/", async (req, res) => {
+  const { address } = req.body;
+  if (!address) return res.status(400).send("Adresse manquante");
+
+  const deleted = await Rating.deleteOne({ address });
+  if (deleted.deletedCount === 0) return res.status(404).send("Aucune donnée trouvée");
+
+  res.status(200).send("Note supprimée");
 });
 
 export default router;
