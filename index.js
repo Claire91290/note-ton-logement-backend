@@ -13,7 +13,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.MONGO_URI, {
+mongoose.connect(process.env.mongodb+srv://claire91150:maxime91150@cluster0.ibdbkya.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0, {
 useNewUrlParser: true,
 useUnifiedTopology: true,
 })
@@ -97,12 +97,12 @@ res.status(500).send("Erreur lors de la suppression");
 });
 
 // Authentification Google
-const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const googleClient = new OAuth2Client(process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com);
 
 async function verifyGoogleToken(token) {
 const ticket = await googleClient.verifyIdToken({
 idToken: token,
-audience: process.env.GOOGLE_CLIENT_ID,
+audience: process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com,
 });
 return ticket.getPayload();
 }
