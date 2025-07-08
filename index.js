@@ -1,49 +1,108 @@
 import express from "express";
+import mongoose from "mongoose";
+import dotenv from "dotenv";
 import cors from "cors";
-import fs from "fs";
+import ratingsRoutes from "./routes/ratings.js";
+import Rating from "./models/Rating.js";
+import User from "./models/User.js";
+import { OAuth2Client } from "google-auth-library";
+
+dotenv.config();
 
 const app = express();
-const PORT = process.env.PORT || 3000;
-
 app.use(cors());
 app.use(express.json());
 
-const dataFile = "data.json";
+mongoose.connect(process.env.mongodb+srv://claire91150:maxime91150@cluster0.ibdbkya.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0, {
+useNewUrlParser: true,
+useUnifiedTopology: true,
+})
+.then(() => console.log("✅ Connecté à MongoDB"))
+.catch((err) => console.error("❌ Erreur de connexion à MongoDB:", err));
 
-function readData() {
-if (!fs.existsSync(dataFile)) return {};
-const raw = fs.readFileSync(dataFile);
-return JSON.parse(raw);
+// ROUTES API
+
+app.use("/api/ratings", ratingsRoutes);
+
+// Route GET – récupérer toutes les évaluations
+app.get("/api/ratings", async (req, res) => {
+try {
+const ratings = await Rating.find();
+res.json(ratings);
+} catch (err) {
+res.status(500).json({ error: "Erreur lors de la récupération des données" });
 }
-
-function writeData(data) {
-fs.writeFileSync(dataFile, JSON.stringify(data, null, 2));
-}
-
-app.get("/api/ratings", (req, res) => {
-const data = readData();
-res.json(data);
 });
 
-app.post("/api/ratings", (req, res) => {
+// Route POST – ajouter une évaluation
+app.post("/api/ratings", async (req, res) => {
+try {
 const entry = req.body;
-const data = readData();
-if (!data[entry.address]) {
-data[entry.address] = {
-criteria: {},
+const { googleId } = entry;
+
+const user = await User.findOne({ googleId });
+if (!user) return res.status(401).json({ error: "Utilisateur non authentifié" });
+
+let rating = await Rating.findOne({ address: entry.address, user: user._id });
+
+if (!rating) {
+rating = new Rating({
+address: entry.address,
 lat: entry.lat,
 lng: entry.lng,
 housingType: entry.housingType,
 duration: entry.duration,
-comments: []
-};
-import { OAuth2Client } from "google-auth-library";
-const googleClient = new OAuth2Client("821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com");
+criteria: {},
+comments: [],
+user: user._id,
+});
+}
+
+// Mettre à jour les critères
+["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
+const value = parseInt(entry[key]);
+if (!rating.criteria[key]) rating.criteria[key] = value;
+else rating.criteria[key] = (rating.criteria[key] + value) / 2;
+});
+
+// Ajouter le commentaire
+if (entry.general_comment) {
+rating.comments.push(entry.general_comment);
+}
+
+await rating.save();
+res.status(201).json({ message: "Note enregistrée" });
+} catch (err) {
+res.status(500).json({ error: "Erreur lors de l'enregistrement" });
+}
+});
+
+// Route DELETE – supprimer une évaluation
+app.delete("/api/ratings", async (req, res) => {
+const { address } = req.body;
+
+if (!address) return res.status(400).send("Adresse manquante");
+
+try {
+const deleted = await Rating.deleteOne({ address });
+
+if (deleted.deletedCount === 0) {
+return res.status(404).send("Aucune donnée trouvée pour cette adresse");
+}
+
+res.status(200).send("Note supprimée");
+} catch (err) {
+res.status(500).send("Erreur lors de la suppression");
+}
+});
+
+// Authentification Google
+const googleClient = new OAuth2Client(process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com);
 
 async function verifyGoogleToken(token) {
 const ticket = await googleClient.verifyIdToken({
 idToken: token,
-audience: "821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com",
+audience: process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com,
 });
 return ticket.getPayload();
 }
@@ -62,779 +121,6 @@ res.status(200).json({ user: userData });
 res.status(401).json({ error: "Token invalide" });
 }
 });
-
-}
-
-const current = data[entry.address];
-
-["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
-const value = parseInt(entry[key]);
-if (!current.criteria[key]) current.criteria[key] = value;
-else current.criteria[key] = (current.criteria[key] + value) / 2;
-});
-
-if (entry.general_comment) {
-current.comments.push(entry.general_comment);
-}
-
-writeData(data);
-res.status(201).json({ message: "Note enregistrée" });
-});
-
-app.listen(PORT, () => {
-console.log(`Serveur en ligne sur http://localhost:${PORT}`);
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 // Démarrage du serveur
 const PORT = process.env.PORT || 3000;
