@@ -13,17 +13,19 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Connexion à MongoDB
 mongoose.connect(process.env.MONGODB_URI, {
 useNewUrlParser: true,
 useUnifiedTopology: true,
-});
+})
 .then(() => console.log("✅ Connecté à MongoDB"))
 .catch((err) => console.error("❌ Erreur de connexion à MongoDB:", err));
 
-// ROUTES API
-
+// Routes API
 app.use("/api/ratings", ratingsRoutes);
 
+// Route GET – récupérer toutes les évaluations
+app.get("/api/ratings", async (req, res) => {
 try {
 const ratings = await Rating.find();
 res.json(ratings);
@@ -63,6 +65,8 @@ if (!isNaN(value)) {
 if (!rating.criteria[key]) rating.criteria[key] = value;
 else rating.criteria[key] = (rating.criteria[key] + value) / 2;
 }
+});
+
 // Ajouter le commentaire
 if (entry.general_comment) {
 rating.comments.push(entry.general_comment);
@@ -71,6 +75,7 @@ rating.comments.push(entry.general_comment);
 await rating.save();
 res.status(201).json({ message: "Note enregistrée" });
 } catch (err) {
+console.error("Erreur POST /api/ratings :", err);
 res.status(500).json({ error: "Erreur lors de l'enregistrement" });
 }
 });
@@ -120,7 +125,7 @@ res.status(401).json({ error: "Token invalide" });
 }
 });
 
-// Démarrage du serveur
+// Lancement du serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
 console.log(`🚀 Serveur lancé sur http://localhost:${PORT}`);
