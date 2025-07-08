@@ -13,10 +13,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-mongoose.connect(process.env.mongodb+srv://claire91150:maxime91150@cluster0.ibdbkya.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0, {
+mongoose.connect(process.env.MONGODB_URI, {
 useNewUrlParser: true,
 useUnifiedTopology: true,
-})
+});
 .then(() => console.log("✅ Connecté à MongoDB"))
 .catch((err) => console.error("❌ Erreur de connexion à MongoDB:", err));
 
@@ -24,8 +24,6 @@ useUnifiedTopology: true,
 
 app.use("/api/ratings", ratingsRoutes);
 
-// Route GET – récupérer toutes les évaluations
-app.get("/api/ratings", async (req, res) => {
 try {
 const ratings = await Rating.find();
 res.json(ratings);
@@ -61,10 +59,10 @@ user: user._id,
 // Mettre à jour les critères
 ["secteur", "acces", "interieur", "exterieur", "loyer"].forEach((key) => {
 const value = parseInt(entry[key]);
+if (!isNaN(value)) {
 if (!rating.criteria[key]) rating.criteria[key] = value;
 else rating.criteria[key] = (rating.criteria[key] + value) / 2;
-});
-
+}
 // Ajouter le commentaire
 if (entry.general_comment) {
 rating.comments.push(entry.general_comment);
@@ -97,12 +95,12 @@ res.status(500).send("Erreur lors de la suppression");
 });
 
 // Authentification Google
-const googleClient = new OAuth2Client(process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com);
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 async function verifyGoogleToken(token) {
 const ticket = await googleClient.verifyIdToken({
 idToken: token,
-audience: process.env.821558407646-qpu2vvs7llea21b7jc9peecsmkuvruc0.apps.googleusercontent.com,
+audience: process.env.GOOGLE_CLIENT_ID,
 });
 return ticket.getPayload();
 }
